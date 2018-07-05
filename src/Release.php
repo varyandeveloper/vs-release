@@ -27,11 +27,8 @@ class Release implements ReleaseInterface
      */
     public function __construct(UrlInterface $url)
     {
-        $releases = ReleaseConstants::getReleases();
-        $this->releaseName = ucfirst($url->segment(0));
-        if (empty($this->releaseName) || empty($releases[$this->releaseName])) {
-            $this->releaseName = ReleaseConstants::getDefaultReleaseName();
-        }
+        $this->releaseName = ucfirst(ltrim($url->current(), '/'));
+        $this->detectCorrectRelease(ReleaseConstants::getReleases());
     }
 
     /**
@@ -76,5 +73,33 @@ class Release implements ReleaseInterface
         $releaseItem->setVersion($data['version']);
         $releaseItem->setNamespace($data['namespace'] ?? null);
         return $releaseItem;
+    }
+
+    /**
+     * @param array $releases
+     * @return void
+     * @throws ReleaseException
+     */
+    protected function detectCorrectRelease(array $releases): void
+    {
+        if (empty($releases[$this->releaseName])) {
+            $partials = explode('/', $this->releaseName);
+            $length = count($partials);
+            while (--$length) {
+                $release = '';
+                for ($i = 0; $i < $length; $i++) {
+                    $release .= $partials[$i] . '/';
+                }
+                $release = rtrim($release, '/');
+                if (!empty($releases[ucfirst($release)])) {
+                    $this->releaseName = ucfirst($release);
+                    break;
+                }
+            }
+        }
+
+        if (empty($releases[$this->releaseName])) {
+            $this->releaseName = ReleaseConstants::getDefaultReleaseName();
+        }
     }
 }
